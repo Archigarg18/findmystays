@@ -9,7 +9,7 @@ const Feedback = () => {
   const [hoveredRating, setHoveredRating] = useState(0);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);

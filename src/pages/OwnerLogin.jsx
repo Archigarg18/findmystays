@@ -2,18 +2,18 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const UserLogin = () => {
+const OwnerLogin = () => {
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    navigate("/user-dashboard");
+    navigate("/owner-dashboard");
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="glass-card p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h2 className="text-3xl font-bold text-center mb-6">👤 User Login</h2>
+        <h2 className="text-3xl font-bold text-center mb-6">🏢 Owner Login</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -26,7 +26,7 @@ const UserLogin = () => {
             <Input type="password" placeholder="Enter your password" required />
           </div>
 
-          <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
+          <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
             Login
           </Button>
         </form>
@@ -40,4 +40,4 @@ const UserLogin = () => {
   );
 };
 
-export default UserLogin;
+export default OwnerLogin;

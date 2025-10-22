@@ -8,7 +8,7 @@ import { toast } from "sonner";
 const Payment = () => {
   const [showPopup, setShowPopup] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setShowPopup(true);
     toast.success("Payment Successful! 🎉");

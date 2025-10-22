@@ -8,7 +8,7 @@ const Signup = () => {
   const navigate = useNavigate();
   const [role, setRole] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (role === "user") {
       navigate("/user-dashboard");
