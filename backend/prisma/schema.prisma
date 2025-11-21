@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  phone     String?
+  gender    String?
+  city      String?
+  email     String   @unique
+  password  String
+  role      String   @default("user")
+  listings  Listing[]
+  bookings  Booking[] @relation("bookedBy")
+  createdAt DateTime @default(now())
+}
+
+model Listing {
+  id          String    @id @default(cuid())
+  ownerId     String
+  owner       User      @relation(fields: [ownerId], references: [id])
+  name        String
+  description String?
+  location    String?
+  price       Float?
+  upiId       String?
+  type        String?
+  facilities  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?
+  bookings    Booking[]
+}
+
+
+
+model Booking {
+  id               String   @id @default(cuid())
+  listingId        String
+  listing          Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User     @relation("bookedBy", fields: [userId], references: [id])
+  ownerId          String
+  amount           Float
+  txRef            String?
+  paymentScreenshot String?
+  paid             Boolean  @default(false)
+  status           String   @default("booked")
+  createdAt        DateTime @default(now())
+
+  @@unique([userId, listingId])
+}

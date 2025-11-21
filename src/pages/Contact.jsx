@@ -2,12 +2,14 @@ import { Link } from "react-router-dom";
 
 const Contact = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center font-sans px-4">
-      <div className="glass-card rounded-2xl shadow-xl p-8 max-w-lg w-full text-center">
-        <h1 className="text-3xl font-bold mb-2">📞 Contact Us</h1>
-        <p className="text-muted-foreground mb-6">We'd love to hear from you! Reach us via:</p>
+    <div className="min-h-screen flex items-center justify-center font-sans px-4 bg-transparent">
+      <div className="glass-card rounded-2xl shadow-xl p-8 max-w-lg w-full text-center bg-white/10 backdrop-blur-md">
+        <h1 className="text-3xl font-bold mb-2 text-white">📞 Contact Us</h1>
+        <p className="text-gray-200 mb-6">
+          We'd love to hear from you! Reach us via:
+        </p>
 
-        <ul className="space-y-3 text-foreground/90 text-left">
+        <ul className="space-y-3 text-gray-100 text-left">
           <li><strong>📞 Phone:</strong> +91 98765 43210</li>
           <li><strong>📧 Email:</strong> support@pgfinder.com</li>
           <li><strong>📍 Address:</strong> Chitkara University, Rajpura, Punjab</li>
@@ -25,7 +27,7 @@ const Contact = () => {
 
         <Link 
           to="/" 
-          className="mt-6 inline-block px-6 py-2 rounded-lg bg-accent hover:bg-accent/90 text-accent-foreground font-semibold transition"
+          className="mt-6 inline-block px-6 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition"
         >
           ← Back to Home
         </Link>

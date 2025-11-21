@@ -1,40 +1,39 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
 
 const OwnerLogin = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate("/owner-dashboard");
+    setError(null);
+    try {
+      const data = await login(email, password);
+  // Redirect owners to bookings by default
+  navigate('/owner/bookings');
+    } catch (err) {
+      setError(err.message || 'Login failed');
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="glass-card p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h2 className="text-3xl font-bold text-center mb-6 text-foreground">🏢 Owner Login</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white px-4">
+      <div className="bg-slate-800/60 p-8 rounded-2xl shadow-lg w-full max-w-md border border-slate-700 backdrop-blur-md">
+        <h2 className="text-3xl font-bold text-center mb-6 text-indigo-400">🏢 Owner Login</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm mb-2 text-foreground font-medium">Email</label>
-            <Input type="email" placeholder="Enter your email" required />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-2 text-foreground font-medium">Password</label>
-            <Input type="password" placeholder="Enter your password" required />
-          </div>
-
-          <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-            Login
-          </Button>
+          {error && <div className="text-sm text-red-400">{error}</div>}
+          <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <Button type="submit" className="w-full py-3 rounded-md bg-indigo-600 hover:bg-indigo-700 transition font-semibold text-lg">Login</Button>
         </form>
-
-        <p className="text-center mt-4 text-sm text-foreground">
-          Don't have an account?{" "}
-          <Link to="/signup" className="text-accent hover:underline font-semibold">Sign Up</Link>
-        </p>
       </div>
     </div>
   );
