@@ -9,7 +9,15 @@ const bookingsRouter = require('./routes/bookings');
 const paymentsRouter = require('./routes/payments');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://your-frontend-domain.com"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
 // Increase JSON body size to allow base64 screenshots for payment proof
 app.use(express.json({ limit: '10mb' }));
 
