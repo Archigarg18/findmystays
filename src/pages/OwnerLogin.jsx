@@ -16,7 +16,7 @@ const OwnerLogin = () => {
     setError(null);
     try {
       const data = await login(email, password);
-  // Redirect owners to bookings by default
+      
   navigate('/owner/bookings');
     } catch (err) {
       setError(err.message || 'Login failed');
