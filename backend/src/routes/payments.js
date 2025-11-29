@@ -14,7 +14,6 @@ const router = express.Router();
 
 async function saveScreenshot(dataUrlOrBase64) {
   if (!dataUrlOrBase64) return null;
-  // extract base64 and mime type if data URL
   let matches = String(dataUrlOrBase64).match(/^data:(image\/[a-zA-Z]+);base64,(.+)$/);
   let ext = 'png';
   let base64 = dataUrlOrBase64;
@@ -23,7 +22,6 @@ async function saveScreenshot(dataUrlOrBase64) {
     base64 = matches[2];
     ext = mime.split('/')[1] || 'png';
   } else {
-    // strip possible data:image/... prefix if present
     base64 = String(dataUrlOrBase64).replace(/^data:image\/[a-zA-Z]+;base64,/, '');
   }
 
@@ -32,25 +30,29 @@ async function saveScreenshot(dataUrlOrBase64) {
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2,9)}.${ext}`;
   const filePath = path.join(uploadsDir, fileName);
   fs.writeFileSync(filePath, Buffer.from(base64, 'base64'));
-  // return web-accessible path
   return `/uploads/payments/${fileName}`;
 }
 
-// Generate UPI QR code for a booking
-// Accept either bookingId (existing booking) or listingId (generate QR for a listing without creating booking)
+// ---------------- GENERATE UPI QR ----------------
 router.post('/upi/qr', auth, async (req, res) => {
   const { bookingId, listingId } = req.body;
   let listing = null;
   let booking = null;
 
   if (bookingId) {
-    booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { listing: { include: { owner: true } } } });
+    booking = await prisma.booking.findUnique({
+      where: { id: Number(bookingId) },
+      include: { listing: { include: { owner: true } } }
+    });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     if (booking.userId !== req.user.id) return res.status(403).json({ error: 'Not allowed' });
     if (booking.paid) return res.status(400).json({ error: 'Already paid' });
     listing = booking.listing;
   } else if (listingId) {
-    listing = await prisma.listing.findUnique({ where: { id: listingId }, include: { owner: true } });
+    listing = await prisma.listing.findUnique({
+      where: { id: Number(listingId) },
+      include: { owner: true }
+    });
     if (!listing) return res.status(404).json({ error: 'Listing not found' });
   } else {
     return res.status(400).json({ error: 'bookingId or listingId required' });
@@ -58,15 +60,16 @@ router.post('/upi/qr', auth, async (req, res) => {
 
   const upiId = listing?.upiId;
   if (!upiId) return res.status(400).json({ error: 'Owner has not configured UPI ID' });
+
   const amount = (booking && booking.amount) ? booking.amount : (req.body.amount ? Number(req.body.amount) : (listing.price || 0));
-  // Build UPI URI (pa = payee address, pn = payee name, am = amount, cu = currency, tn = note)
   const pa = encodeURIComponent(upiId);
   const pn = encodeURIComponent(listing.owner?.name || '');
   const am = encodeURIComponent(String(amount));
   const tn = encodeURIComponent(booking ? `Booking ${booking.id}` : `Payment for ${listing.name || listing.id}`);
   const upiUri = `upi://pay?pa=${pa}&pn=${pn}&am=${am}&cu=INR&tn=${tn}`;
 
-  if (!QRCode) return res.status(500).json({ error: 'Server missing qrcode dependency. Run `npm install qrcode` in backend.' });
+  if (!QRCode) return res.status(500).json({ error: 'Server missing qrcode dependency. Run `npm install qrcode`.' });
+
   try {
     const dataUrl = await QRCode.toDataURL(upiUri);
     res.json({ qr: dataUrl, upiUri, amount, listingId: listing.id, bookingId: booking ? booking.id : null });
@@ -76,15 +79,14 @@ router.post('/upi/qr', auth, async (req, res) => {
   }
 });
 
-// Confirm a UPI payment (manual confirmation)
+// ---------------- CONFIRM UPI PAYMENT ----------------
 router.post('/upi/confirm', auth, async (req, res) => {
-  // Accepts either bookingId (update existing booking) or listingId (create booking + attach proof)
   const { bookingId, listingId, txRef, screenshot, amount } = req.body;
 
   if (!bookingId && !listingId) return res.status(400).json({ error: 'bookingId or listingId required' });
 
   if (bookingId) {
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    const booking = await prisma.booking.findUnique({ where: { id: Number(bookingId) } });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     if (booking.userId !== req.user.id) return res.status(403).json({ error: 'Not allowed' });
     if (booking.paid) return res.status(400).json({ error: 'Already paid' });
@@ -92,23 +94,19 @@ router.post('/upi/confirm', auth, async (req, res) => {
     const data = { status: 'pending' };
     if (txRef) data.txRef = txRef;
     if (screenshot) {
-      try {
-        const saved = await saveScreenshot(screenshot);
-        data.paymentScreenshot = saved;
-      } catch (e) {
-        console.error('Failed to save screenshot', e);
-      }
+      try { data.paymentScreenshot = await saveScreenshot(screenshot); } catch (e) { console.error('Failed to save screenshot', e); }
     }
-    await prisma.booking.update({ where: { id: bookingId }, data });
+    await prisma.booking.update({ where: { id: Number(bookingId) }, data });
     return res.json({ ok: true, bookingId });
   }
 
   // create booking for listingId and attach proof
-  const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+  const listing = await prisma.listing.findUnique({ where: { id: Number(listingId) } });
   if (!listing) return res.status(404).json({ error: 'Listing not found' });
 
-  // prevent duplicate booking by same user for same listing
-  const existing = await prisma.booking.findUnique({ where: { userId_listingId: { userId: req.user.id, listingId } } }).catch(() => null);
+  const existing = await prisma.booking.findUnique({
+    where: { userId_listingId: { userId: req.user.id, listingId: Number(listingId) } }
+  }).catch(() => null);
   if (existing) return res.status(400).json({ error: 'You have already booked this listing' });
 
   let savedScreenshot = null;
@@ -116,15 +114,17 @@ router.post('/upi/confirm', auth, async (req, res) => {
     try { savedScreenshot = await saveScreenshot(screenshot); } catch (e) { console.error('Failed to save screenshot', e); }
   }
 
-  const booking = await prisma.booking.create({ data: {
-    listingId,
-    userId: req.user.id,
-    ownerId: listing.ownerId,
-    amount: amount ? Number(amount) : (listing.price || 0),
-    status: 'pending',
-    txRef: txRef || undefined,
-    paymentScreenshot: savedScreenshot || undefined,
-  } });
+  const booking = await prisma.booking.create({
+    data: {
+      listingId: Number(listingId),
+      userId: req.user.id,
+      ownerId: listing.ownerId,
+      amount: amount ? Number(amount) : (listing.price || 0),
+      status: 'pending',
+      txRef: txRef || undefined,
+      paymentScreenshot: savedScreenshot || undefined
+    }
+  });
 
   res.status(201).json({ ok: true, bookingId: booking.id });
 });
