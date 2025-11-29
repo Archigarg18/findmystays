@@ -1,12 +1,11 @@
 const express = require('express');
-const { nanoid } = require('nanoid');
 const auth = require('../middleware/auth');
 const { check, validationResult } = require('express-validator');
 const prisma = require('../prisma');
 
 const router = express.Router();
 
-// Create a booking (protected)
+// ---------------- CREATE BOOKING ----------------
 router.post(
   '/',
   auth,
@@ -19,31 +18,57 @@ router.post(
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     const { listingId, amount } = req.body;
-    const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+    const listing = await prisma.listing.findUnique({ where: { id: Number(listingId) } });
     if (!listing) return res.status(404).json({ error: 'Listing not found' });
 
     // prevent duplicate booking by same user for same listing
-    const existing = await prisma.booking.findUnique({ where: { userId_listingId: { userId: req.user.id, listingId } } }).catch(() => null);
+    const existing = await prisma.booking.findUnique({
+      where: { userId_listingId: { userId: req.user.id, listingId: Number(listingId) } }
+    }).catch(() => null);
+
     if (existing) return res.status(400).json({ error: 'You have already booked this listing' });
 
-    const booking = await prisma.booking.create({ data: { listingId, userId: req.user.id, ownerId: listing.ownerId, amount: amount ? Number(amount) : (listing.price || 0) } });
+    const booking = await prisma.booking.create({
+      data: {
+        listingId: Number(listingId),
+        userId: req.user.id,
+        ownerId: listing.ownerId, // Owner table
+        amount: amount ? Number(amount) : (listing.price || 0)
+      },
+      include: {
+        listing: true,
+        user: true
+      }
+    });
+
     res.status(201).json(booking);
   }
 );
 
-// Get bookings for current user (if owner, return bookings for their listings)
+// ---------------- GET BOOKINGS ----------------
 router.get('/', auth, async (req, res) => {
   const isOwner = req.user.role === 'owner';
   let results;
   if (isOwner) {
-    results = await prisma.booking.findMany({ where: { ownerId: req.user.id }, include: { listing: true, user: true } });
+    results = await prisma.booking.findMany({
+      where: { ownerId: req.user.id },
+      include: {
+        listing: true,
+        user: true,
+        // optionally include owner info
+        // owner: true
+      }
+    });
   } else {
-    results = await prisma.booking.findMany({ where: { userId: req.user.id }, include: { listing: true, user: true } });
+    results = await prisma.booking.findMany({
+      where: { userId: req.user.id },
+      include: { listing: true, user: true }
+    });
   }
   res.json(results);
 });
 
-// Update booking (e.g., mark as paid) - only booking owner, listing owner or admin
+// ---------------- UPDATE BOOKING ----------------
 router.patch(
   '/:id',
   auth,
@@ -58,10 +83,9 @@ router.patch(
     const { id } = req.params;
     const { paid, status } = req.body;
 
-    const booking = await prisma.booking.findUnique({ where: { id } });
+    const booking = await prisma.booking.findUnique({ where: { id: Number(id) } });
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
 
-    const isOwner = req.user.role === 'owner';
     const isAdmin = req.user.role === 'admin';
     const isBookingUser = booking.userId === req.user.id;
     const isListingOwner = booking.ownerId === req.user.id;
@@ -76,7 +100,12 @@ router.patch(
 
     if (Object.keys(data).length === 0) return res.status(400).json({ error: 'No updatable fields provided' });
 
-    const updated = await prisma.booking.update({ where: { id }, data, include: { listing: true, user: true } });
+    const updated = await prisma.booking.update({
+      where: { id: Number(id) },
+      data,
+      include: { listing: true, user: true }
+    });
+
     res.json(updated);
   }
 );
