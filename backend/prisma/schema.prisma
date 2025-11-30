@@ -17,6 +17,8 @@ model User {
   password  String
   bookings  Booking[] @relation("bookedBy")
   reviews   Review[]
+  userFilters UserFilter[]
+  wishlists Wishlist[]
   createdAt DateTime  @default(now())
 }
 
@@ -46,6 +48,7 @@ model Listing {
   facilities  String?
   bookings    Booking[]
   reviews     Review[]
+  wishlists   Wishlist[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime?
 }
@@ -63,6 +66,7 @@ model Booking {
   status    String?   @default("pending")
   txRef     String?
   paymentScreenshot String?
+  payments  Payment[]
   createdAt DateTime  @default(now())
   updatedAt DateTime?
 }
@@ -75,12 +79,42 @@ model Review {
   listing   Listing   @relation(fields: [listingId], references: [id])
   rating    Int
   comment   String?
+  userName  String?
+  userEmail String?
   createdAt DateTime  @default(now())
 }
 
-model Facility {
-  id          Int     @id @default(autoincrement())
-  name        String
-  description String?
+
+
+model Payment {
+  id               Int      @id @default(autoincrement())
+  upiTransactionId String?
+  amount           Float
+  status           String   @default("pending")
+  bookingId        Int
+  booking          Booking  @relation(fields: [bookingId], references: [id])
+  createdAt        DateTime @default(now())
+}
+
+model UserFilter {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  filterName  String
+  filterValue String
   createdAt   DateTime @default(now())
+}
+
+model Wishlist {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  listingId   Int
+  listing     Listing  @relation(fields: [listingId], references: [id])
+  listingName String?
+  userName    String?
+  userEmail   String?
+  createdAt   DateTime @default(now())
+  
+  @@unique([userId, listingId])
 }

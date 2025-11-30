@@ -5,7 +5,8 @@ const DashboardSidebar = ({ type }) => {
   const userLinks = [
     { href: "/user-dashboard", icon: "📊", label: "Dashboard" },
     { href: "/user/profile", icon: "👤", label: "Profile" },
-    { href: "/user/bookings", icon: "📦", label: "My Bookings" }, // ✅ updated route
+    { href: "/user/bookings", icon: "📦", label: "My Bookings" },
+    { href: "/user/wishlist", icon: "❤️", label: "Wishlist" },
   ];
 
   const ownerLinks = [

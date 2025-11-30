@@ -1,18 +1,65 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { apiFetch } from "@/lib/api";
 
 const Feedback = () => {
+  const [searchParams] = useSearchParams();
+  const listingId = searchParams.get("listingId") || "1"; // Default to listing 1 if not provided
+
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    setError("");
+
+    if (rating === 0) {
+      setError("Please select a rating");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await apiFetch("/api/reviews/guest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          listingId: Number(listingId),
+          rating: rating,
+          comment: comment,
+          guestName: name,
+          guestEmail: email
+        })
+      });
+
+      if (response.ok) {
+        setSubmitted(true);
+        setRating(0);
+        setName("");
+        setEmail("");
+        setComment("");
+        setTimeout(() => setSubmitted(false), 3000);
+      } else {
+        const data = await response.json();
+        setError(data.error || "Failed to submit feedback");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to submit feedback");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,11 +87,10 @@ const Feedback = () => {
             {[1, 2, 3, 4, 5].map((star) => (
               <span
                 key={star}
-                className={`text-4xl cursor-pointer transition-colors ${
-                  star <= (hoveredRating || rating)
+                className={`text-4xl cursor-pointer transition-colors ${star <= (hoveredRating || rating)
                     ? "text-yellow-400"
                     : "text-gray-400"
-                }`}
+                  }`}
                 onClick={() => setRating(star)}
                 onMouseEnter={() => setHoveredRating(star)}
                 onMouseLeave={() => setHoveredRating(0)}
@@ -59,33 +105,47 @@ const Feedback = () => {
             <Input
               type="text"
               placeholder="Full Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className="w-full bg-white/70 text-gray-900 placeholder:font-semibold placeholder:text-gray-700"
               required
             />
             <Input
               type="email"
               placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-white/70 text-gray-900 placeholder:font-semibold placeholder:text-gray-700"
               required
             />
             <Textarea
               placeholder="Write your feedback..."
               rows={4}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
               className="w-full bg-white/70 text-gray-900 placeholder:font-semibold placeholder:text-gray-700"
               required
             />
             <Button
               type="submit"
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold"
+              disabled={loading}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold disabled:opacity-50"
             >
-              Submit Feedback
+              {loading ? "Submitting..." : "Submit Feedback"}
             </Button>
           </form>
+
+          {/* Error Message */}
+          {error && (
+            <p className="text-red-400 font-semibold text-center mt-4">
+              ❌ {error}
+            </p>
+          )}
 
           {/* Success Message */}
           {submitted && (
             <p className="text-green-400 font-semibold text-center mt-4">
-              ✅ Thank you for your feedback!
+              ✅ Thank you for your feedback! It has been saved to the database.
             </p>
           )}
         </div>

@@ -2,26 +2,25 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardSidebar from "@/components/DashboardSidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 
 const UserDashboard = () => {
-  const navigate = useNavigate();
   const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [bookedListingIds, setBookedListingIds] = useState(new Set());
-
+  const [wishlistIds, setWishlistIds] = useState(new Set());
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchListings = async () => {
-      setLoading(true);
       try {
-  const { apiFetch } = await import('@/lib/api');
-  const res = await apiFetch('/api/listings');
-  const text = await res.text();
+        const { apiFetch } = await import('@/lib/api');
+        const res = await apiFetch('/api/listings');
+        const text = await res.text();
         let data = [];
         if (text) {
           try { data = JSON.parse(text); } catch (e) { console.error('Invalid listings response', text); }
@@ -34,33 +33,119 @@ const UserDashboard = () => {
     fetchListings();
   }, []);
 
-  // Fetch current user's bookings to mark booked PGs
+  // Fetch bookings and wishlist
   useEffect(() => {
     (async () => {
       try {
         const token = localStorage.getItem('token');
-        if (!token) return setBookedListingIds(new Set());
+        if (!token) {
+          setBookedListingIds(new Set());
+          setWishlistIds(new Set());
+          return;
+        }
         const { apiFetch } = await import('@/lib/api');
-        const res = await apiFetch('/api/bookings', { headers: { Authorization: `Bearer ${token}` } });
-        const txt = await res.text();
-        let all = [];
-        if (txt) { try { all = JSON.parse(txt); } catch (e) { console.error('Invalid bookings response', txt); } }
-        if (!Array.isArray(all)) return setBookedListingIds(new Set());
-        const ids = new Set(all.filter(b => b && b.listingId && b.status !== 'cancelled' && b.status !== 'rejected').map(b => b.listingId));
-        setBookedListingIds(ids);
+
+        // Fetch Bookings
+        const resBookings = await apiFetch('/api/bookings', { headers: { Authorization: `Bearer ${token}` } });
+        const txtBookings = await resBookings.text();
+        let allBookings = [];
+        if (txtBookings) { try { allBookings = JSON.parse(txtBookings); } catch (e) { console.error('Invalid bookings response', txtBookings); } }
+        if (Array.isArray(allBookings)) {
+          const ids = new Set(allBookings.filter(b => b && b.listingId && b.status !== 'cancelled' && b.status !== 'rejected').map(b => b.listingId));
+          setBookedListingIds(ids);
+        }
+
+        // Fetch Wishlist
+        const resWishlist = await apiFetch('/api/wishlist', { headers: { Authorization: `Bearer ${token}` } });
+        if (resWishlist.ok) {
+          const wishlistData = await resWishlist.json();
+          const wIds = new Set(wishlistData.map(item => item.listingId));
+          setWishlistIds(wIds);
+        }
+
       } catch (e) {
-        console.error('Failed to fetch bookings', e);
-        setBookedListingIds(new Set());
+        console.error('Failed to fetch user data', e);
       }
     })();
   }, [user]);
+
+  const toggleWishlist = async (listingId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const { apiFetch } = await import('@/lib/api');
+
+      if (wishlistIds.has(listingId)) {
+        // Remove
+        const res = await apiFetch(`/api/wishlist/${listingId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setWishlistIds(prev => {
+            const next = new Set(prev);
+            next.delete(listingId);
+            return next;
+          });
+        }
+      } else {
+        // Add
+        const res = await apiFetch('/api/wishlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ listingId })
+        });
+        if (res.ok) {
+          setWishlistIds(prev => new Set(prev).add(listingId));
+        }
+      }
+    } catch (error) {
+      console.error("Wishlist toggle failed", error);
+    }
+  };
 
   const [priceRange, setPriceRange] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [roomType, setRoomType] = useState("");
   const [appliedFilters, setAppliedFilters] = useState(null);
 
-  const applyFilters = () => setAppliedFilters({ priceRange, location: locationFilter, roomType });
+  const applyFilters = async () => {
+    setAppliedFilters({ priceRange, location: locationFilter, roomType });
+
+    // Save filter usage to backend
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const { apiFetch } = await import('@/lib/api');
+
+      if (priceRange) {
+        await apiFetch('/api/user-filters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ filterName: 'priceRange', filterValue: priceRange })
+        }).catch(e => console.log('Filter save failed:', e));
+      }
+
+      if (locationFilter) {
+        await apiFetch('/api/user-filters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ filterName: 'location', filterValue: locationFilter })
+        }).catch(e => console.log('Filter save failed:', e));
+      }
+
+      if (roomType) {
+        await apiFetch('/api/user-filters', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ filterName: 'roomType', filterValue: roomType })
+        }).catch(e => console.log('Filter save failed:', e));
+      }
+    } catch (error) {
+      console.log('Filter tracking error:', error);
+    }
+  };
   const clearFilters = () => { setPriceRange(""); setLocationFilter(""); setRoomType(""); setAppliedFilters(null); };
 
   const filteredPGs = listings.filter((pg) => {
@@ -153,9 +238,15 @@ const UserDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPGs.map((pg, index) => (
               <motion.div key={pg.id || index} initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-                <Card className="bg-white/15 backdrop-blur-lg rounded-2xl shadow-lg hover:scale-105 hover:shadow-xl transition-transform border border-white/10">
-                  <CardHeader>
+                <Card className="bg-white/15 backdrop-blur-lg rounded-2xl shadow-lg hover:scale-105 hover:shadow-xl transition-transform border border-white/10 relative">
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-xl text-white">{pg.name}</CardTitle>
+                    <button
+                      onClick={() => toggleWishlist(pg.id)}
+                      className="text-2xl hover:scale-110 transition-transform focus:outline-none"
+                    >
+                      {wishlistIds.has(pg.id) ? "❤️" : "🤍"}
+                    </button>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm mb-2">📍 {pg.location}</p>

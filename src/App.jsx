@@ -24,7 +24,8 @@ import OwnerBookings from "./pages/OwnerBookings";
 
 // 🆕 Booking-related pages
 import UserBooking from "./pages/UserBooking";
-import BookingDetails from "./pages/BookingDetails"; // 👈 You'll create this next
+import BookingDetails from "./pages/BookingDetails";
+import Wishlist from "./pages/Wishlist";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
           {/* 🧾 User Bookings */}
           <Route path="/user/bookings" element={<ProtectedRoute><UserBooking /></ProtectedRoute>} />
           <Route path="/user/bookings/:bookingId" element={<ProtectedRoute><BookingDetails /></ProtectedRoute>} />
+          <Route path="/user/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
 
           {/* ❌ Not Found */}
           <Route path="*" element={<NotFound />} />

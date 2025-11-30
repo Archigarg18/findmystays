@@ -27,7 +27,7 @@ async function saveScreenshot(dataUrlOrBase64) {
 
   const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'payments');
   fs.mkdirSync(uploadsDir, { recursive: true });
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2,9)}.${ext}`;
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
   const filePath = path.join(uploadsDir, fileName);
   fs.writeFileSync(filePath, Buffer.from(base64, 'base64'));
   return `/uploads/payments/${fileName}`;
@@ -97,6 +97,17 @@ router.post('/upi/confirm', auth, async (req, res) => {
       try { data.paymentScreenshot = await saveScreenshot(screenshot); } catch (e) { console.error('Failed to save screenshot', e); }
     }
     await prisma.booking.update({ where: { id: Number(bookingId) }, data });
+
+    // Create Payment Record
+    await prisma.payment.create({
+      data: {
+        bookingId: Number(bookingId),
+        amount: booking.amount,
+        status: 'pending',
+        upiTransactionId: txRef || null
+      }
+    });
+
     return res.json({ ok: true, bookingId });
   }
 
@@ -123,6 +134,16 @@ router.post('/upi/confirm', auth, async (req, res) => {
       status: 'pending',
       txRef: txRef || undefined,
       paymentScreenshot: savedScreenshot || undefined
+    }
+  });
+
+  // Create Payment Record
+  await prisma.payment.create({
+    data: {
+      bookingId: booking.id,
+      amount: booking.amount,
+      status: 'pending',
+      upiTransactionId: txRef || null
     }
   });
 

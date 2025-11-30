@@ -106,6 +106,18 @@ router.patch(
       include: { listing: true, user: true }
     });
 
+    // Update Payment status when booking is confirmed/completed
+    if (status && (status === 'confirmed' || status === 'completed' || status === 'approved')) {
+      try {
+        await prisma.payment.updateMany({
+          where: { bookingId: Number(id) },
+          data: { status: 'completed' }
+        });
+      } catch (e) {
+        console.error('Failed to update payment status:', e);
+      }
+    }
+
     res.json(updated);
   }
 );
